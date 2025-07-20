@@ -47,16 +47,11 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
         body: JSON.stringify(formData),
       });
 
-      // Always try to parse the response, regardless of status code
-      const result = await response.json();
-      
-      // Check if webhook responded with success message
-      if (result.message === 'Success') {
+      if (response.ok) {
         setSubmitStatus('success');
         // Reset form after successful submission
         setFormData({
@@ -73,11 +68,9 @@ function App() {
           }
         }, 1000);
       } else {
-        // Webhook returned Error or any other message
         setSubmitStatus('error');
       }
     } catch (error) {
-      console.error('Webhook submission error:', error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
