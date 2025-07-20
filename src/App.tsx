@@ -39,8 +39,8 @@ function App() {
 
   /**
    * Handles the form submission process.
-   * It sends the form data to a webhook and waits for a specific JSON response
-   * to determine if the submission was successful or not.
+   * It sends the form data to a webhook. The webhook responds immediately that the workflow
+   * has started. The UI will show success upon receiving this initial confirmation.
    * Includes a 50-second timeout for the request.
    * @param {React.FormEvent} e - The form event.
    */
@@ -58,7 +58,6 @@ function App() {
     setIsSubmitting(true);
     setSubmitStatus('idle'); // Reset status from any previous submission
 
-    // --- New: AbortController for implementing a timeout ---
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
         controller.abort();
@@ -72,17 +71,18 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
-        signal: controller.signal // Pass the abort signal to the fetch request
+        signal: controller.signal
       });
       
-      // --- New: Clear the timeout if the fetch request completes in time ---
       clearTimeout(timeoutId);
 
       // --- 4. Wait for and parse the webhook's JSON response ---
       const responseData = await response.json();
 
-      // --- 5. Check the response message to determine outcome ---
-      if (response.ok && responseData.message === 'Success') {
+      // --- 5. Check if the workflow started successfully ---
+      // n8n webhooks often respond immediately with a confirmation that the workflow has started.
+      // We will treat this as a "success" for the UI feedback.
+      if (response.ok && responseData.message === 'Workflow was started') {
         setSubmitStatus('success');
         // Reset the form fields for the next entry
         setFormData({
@@ -102,17 +102,15 @@ function App() {
         }, 2000); // Show success message for 2 seconds
 
       } else {
-        // Handle an explicit error from the webhook or a non-200 HTTP status
+        // Handle any other response as an error
         setSubmitStatus('error');
         console.error("Submission failed:", responseData.message || `Server responded with status ${response.status}`);
         setTimeout(() => setSubmitStatus('idle'), 3000); // Show error message for 3 seconds
       }
     } catch (error: any) {
-      // --- New: Clear timeout in case of other errors to prevent memory leaks ---
       clearTimeout(timeoutId);
       
       setSubmitStatus('error');
-      // Check if the error was caused by the timeout
       if (error.name === 'AbortError') {
         console.error("Submission timed out after 50 seconds.");
       } else {
