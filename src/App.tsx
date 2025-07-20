@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Moon, Sun, Send, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
+import { Moon, Sun, CheckCircle, AlertCircle } from 'lucide-react';
 
+// Interface defining the structure of the form data
 interface FormData {
   OrderNumber: string;
   Status: 'Tracked' | 'Untracked' | '';
@@ -9,10 +10,15 @@ interface FormData {
   Action: string;
 }
 
+// The main App component
 function App() {
+  // State for theme (dark/light mode)
   const [isDark, setIsDark] = useState(true);
+  // State to track if the form is currently being submitted
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // State to manage the visual feedback on the submit button ('idle', 'success', 'error')
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  // State for all form input values
   const [formData, setFormData] = useState<FormData>({
     OrderNumber: '',
     Status: '',
@@ -21,28 +27,38 @@ function App() {
     Action: ''
   });
 
+  // Ref to the first input field for programmatic focus
   const orderNumberRef = useRef<HTMLInputElement>(null);
 
+  // Effect to focus the first input field when the component mounts
   useEffect(() => {
-    // Focus on first field when component mounts
     if (orderNumberRef.current) {
       orderNumberRef.current.focus();
     }
   }, []);
 
+  /**
+   * Handles the form submission process.
+   * It sends the form data to a webhook and waits for a specific JSON response
+   * to determine if the submission was successful or not.
+   * @param {React.FormEvent} e - The form event.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // --- 1. Initial client-side validation ---
     if (!formData.OrderNumber || !formData.Status || !formData.Store) {
       setSubmitStatus('error');
-      setTimeout(() => setSubmitStatus('idle'), 3000);
+      setTimeout(() => setSubmitStatus('idle'), 3000); // Show error message for 3 seconds
       return;
     }
 
+    // --- 2. Set loading state ---
     setIsSubmitting(true);
-    setSubmitStatus('idle');
+    setSubmitStatus('idle'); // Reset status from any previous submission
 
     try {
+      // --- 3. Send data to the webhook ---
       const response = await fetch('https://n8n.a2kai.co.uk/webhook/order-submission', {
         method: 'POST',
         headers: {
@@ -51,9 +67,13 @@ function App() {
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
+      // --- 4. Wait for and parse the webhook's JSON response ---
+      const responseData = await response.json();
+
+      // --- 5. Check the response message to determine outcome ---
+      if (response.ok && responseData.message === 'Success') {
         setSubmitStatus('success');
-        // Reset form after successful submission
+        // Reset the form fields for the next entry
         setFormData({
           OrderNumber: '',
           Status: '',
@@ -61,30 +81,48 @@ function App() {
           Store: '',
           Action: ''
         });
-        // Focus back to first field for next entry
+        
+        // After showing success, reset the button and focus the first field
         setTimeout(() => {
+          setSubmitStatus('idle');
           if (orderNumberRef.current) {
             orderNumberRef.current.focus();
           }
-        }, 1000);
+        }, 2000); // Show success message for 2 seconds
+
       } else {
+        // Handle an explicit error from the webhook or a non-200 HTTP status
         setSubmitStatus('error');
+        console.error("Submission failed:", responseData.message || `Server responded with status ${response.status}`);
+        setTimeout(() => setSubmitStatus('idle'), 3000); // Show error message for 3 seconds
       }
     } catch (error) {
+      // Handle network errors or issues with JSON parsing
       setSubmitStatus('error');
-    } finally {
-      setIsSubmitting(false);
+      console.error("An unexpected error occurred:", error);
       setTimeout(() => setSubmitStatus('idle'), 3000);
+    } finally {
+      // --- 6. Stop the loading indicator regardless of outcome ---
+      setIsSubmitting(false);
     }
   };
 
+  /**
+   * Handles keyboard shortcuts, specifically Ctrl+Enter to submit the form.
+   * @param {React.KeyboardEvent} e - The keyboard event.
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Submit form on Ctrl+Enter
     if (e.ctrlKey && e.key === 'Enter') {
       handleSubmit(e as any);
     }
   };
 
+  /**
+   * Allows selecting radio buttons with Enter or Space for better accessibility.
+   * @param {React.KeyboardEvent} e - The keyboard event.
+   * @param {string} value - The value to set for the radio group.
+   * @param {'status' | 'store'} type - The form field to update.
+   */
   const handleRadioKeyDown = (e: React.KeyboardEvent, value: string, type: 'status' | 'store') => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -96,10 +134,11 @@ function App() {
     }
   };
 
+  // --- JSX for rendering the component ---
   return (
     <div className={`min-h-screen transition-all duration-300 ${isDark ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 to-indigo-100'}`}>
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Header Section */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <div className="flex items-center space-x-3 mb-2">
@@ -117,6 +156,7 @@ function App() {
             </p>
           </div>
           
+          {/* Theme Toggle Button */}
           <button
             onClick={() => setIsDark(!isDark)}
             className={`p-3 rounded-full transition-all duration-300 hover:scale-110 ${
@@ -129,7 +169,7 @@ function App() {
           </button>
         </div>
 
-        {/* Form */}
+        {/* Form Container */}
         <div className="max-w-2xl mx-auto">
           <form 
             onSubmit={handleSubmit} 
@@ -140,7 +180,7 @@ function App() {
                 : 'bg-white/80 border-white/50'
             }`}
           >
-            {/* Order Number */}
+            {/* Order Number Input */}
             <div className="mb-6">
               <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                 Order Number
@@ -161,7 +201,7 @@ function App() {
               />
             </div>
 
-            {/* Tracking Status */}
+            {/* Tracking Status Radio Buttons */}
             <div className="mb-6">
               <label className={`block text-sm font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                 Tracking Status
@@ -193,7 +233,7 @@ function App() {
               </div>
             </div>
 
-            {/* Link */}
+            {/* Link Input */}
             <div className="mb-6">
               <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                 Link
@@ -207,12 +247,12 @@ function App() {
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                 }`}
-                placeholder="https://example.com"
+                placeholder="https://example.com (optional)"
                 tabIndex={4}
               />
             </div>
 
-            {/* Store Selection */}
+            {/* Store Selection Radio Buttons */}
             <div className="mb-6">
               <label className={`block text-sm font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                 Store
@@ -244,7 +284,7 @@ function App() {
               </div>
             </div>
 
-            {/* Action */}
+            {/* Action Textarea */}
             <div className="mb-8">
               <label className={`block text-sm font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                 Action
@@ -258,12 +298,12 @@ function App() {
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                 }`}
-                placeholder="Describe the action to be taken..."
+                placeholder="Describe the action to be taken... (optional)"
                 tabIndex={8}
               />
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button with Dynamic States */}
             <button
               type="submit"
               disabled={isSubmitting}
