@@ -43,7 +43,7 @@ function App() {
     setSubmitStatus('idle');
 
     try {
-      const response = await fetch('https://n8n.a2kai.co.uk/webhook/dd9757fc-419c-4a9a-8adc-f0f632623235', {
+      const response = await fetch('https://n8n.a2kai.co.uk/webhook/order-submission', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
