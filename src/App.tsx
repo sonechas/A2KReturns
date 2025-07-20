@@ -47,38 +47,37 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        // Parse the webhook response
-        const result = await response.json();
-        
-        if (result.message === 'Success') {
-          setSubmitStatus('success');
-          // Reset form after successful submission
-          setFormData({
-            OrderNumber: '',
-            Status: '',
-            Link: '',
-            Store: '',
-            Action: ''
-          });
-          // Focus back to first field for next entry
-          setTimeout(() => {
-            if (orderNumberRef.current) {
-              orderNumberRef.current.focus();
-            }
-          }, 1000);
-        } else {
-          // Webhook returned Error or any other message
-          setSubmitStatus('error');
-        }
+      // Always try to parse the response, regardless of status code
+      const result = await response.json();
+      
+      // Check if webhook responded with success message
+      if (result.message === 'Success') {
+        setSubmitStatus('success');
+        // Reset form after successful submission
+        setFormData({
+          OrderNumber: '',
+          Status: '',
+          Link: '',
+          Store: '',
+          Action: ''
+        });
+        // Focus back to first field for next entry
+        setTimeout(() => {
+          if (orderNumberRef.current) {
+            orderNumberRef.current.focus();
+          }
+        }, 1000);
       } else {
+        // Webhook returned Error or any other message
         setSubmitStatus('error');
       }
     } catch (error) {
+      console.error('Webhook submission error:', error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
