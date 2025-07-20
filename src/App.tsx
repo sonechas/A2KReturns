@@ -52,21 +52,29 @@ function App() {
       });
 
       if (response.ok) {
-        setSubmitStatus('success');
-        // Reset form after successful submission
-        setFormData({
-          OrderNumber: '',
-          Status: '',
-          Link: '',
-          Store: '',
-          Action: ''
-        });
-        // Focus back to first field for next entry
-        setTimeout(() => {
-          if (orderNumberRef.current) {
-            orderNumberRef.current.focus();
-          }
-        }, 1000);
+        // Parse the webhook response
+        const result = await response.json();
+        
+        if (result.message === 'Success') {
+          setSubmitStatus('success');
+          // Reset form after successful submission
+          setFormData({
+            OrderNumber: '',
+            Status: '',
+            Link: '',
+            Store: '',
+            Action: ''
+          });
+          // Focus back to first field for next entry
+          setTimeout(() => {
+            if (orderNumberRef.current) {
+              orderNumberRef.current.focus();
+            }
+          }, 1000);
+        } else {
+          // Webhook returned Error or any other message
+          setSubmitStatus('error');
+        }
       } else {
         setSubmitStatus('error');
       }
