@@ -83,7 +83,6 @@ function App() {
       // n8n webhooks often respond immediately with a confirmation that the workflow has started.
       // We will treat this as a "success" for the UI feedback.
       if (response.ok && responseData.message === 'Workflow was started') {
-        setSubmitStatus('success');
         // Reset the form fields for the next entry
         setFormData({
           OrderNumber: '',
@@ -93,22 +92,31 @@ function App() {
           Action: ''
         });
         
-        // After showing success, reset the button and focus the first field
+        // --- MODIFIED LOGIC ---
+        // Add an artificial delay to give the user a sense of processing.
         setTimeout(() => {
-          setSubmitStatus('idle');
-          if (orderNumberRef.current) {
-            orderNumberRef.current.focus();
-          }
-        }, 2000); // Show success message for 2 seconds
+            setIsSubmitting(false); // Stop the spinner
+            setSubmitStatus('success'); // Show the success message
+
+            // After showing success, reset the button to idle for the next submission.
+            setTimeout(() => {
+                setSubmitStatus('idle');
+                if (orderNumberRef.current) {
+                    orderNumberRef.current.focus();
+                }
+            }, 2000); // Show success message for 2 seconds
+        }, 1500); // Wait for 1.5 seconds before showing success
 
       } else {
         // Handle any other response as an error
+        setIsSubmitting(false);
         setSubmitStatus('error');
         console.error("Submission failed:", responseData.message || `Server responded with status ${response.status}`);
         setTimeout(() => setSubmitStatus('idle'), 3000); // Show error message for 3 seconds
       }
     } catch (error: any) {
       clearTimeout(timeoutId);
+      setIsSubmitting(false);
       
       setSubmitStatus('error');
       if (error.name === 'AbortError') {
@@ -117,10 +125,9 @@ function App() {
         console.error("An unexpected error occurred:", error);
       }
       setTimeout(() => setSubmitStatus('idle'), 3000);
-    } finally {
-      // --- 6. Stop the loading indicator regardless of outcome ---
-      setIsSubmitting(false);
     }
+    // The `finally` block was removed to allow for the artificial delay logic.
+    // The `setIsSubmitting(false)` is now handled within the try/catch blocks.
   };
 
   /**
