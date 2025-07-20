@@ -41,6 +41,7 @@ function App() {
    * Handles the form submission process.
    * It sends the form data to a webhook and waits for a specific JSON response
    * to determine if the submission was successful or not.
+   * Includes a 50-second timeout for the request.
    * @param {React.FormEvent} e - The form event.
    */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,15 +58,25 @@ function App() {
     setIsSubmitting(true);
     setSubmitStatus('idle'); // Reset status from any previous submission
 
+    // --- New: AbortController for implementing a timeout ---
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 50000); // 50 seconds timeout
+
     try {
-      // --- 3. Send data to the webhook ---
+      // --- 3. Send data to the webhook with the timeout signal ---
       const response = await fetch('https://n8n.a2kai.co.uk/webhook/order-submission', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
+        signal: controller.signal // Pass the abort signal to the fetch request
       });
+      
+      // --- New: Clear the timeout if the fetch request completes in time ---
+      clearTimeout(timeoutId);
 
       // --- 4. Wait for and parse the webhook's JSON response ---
       const responseData = await response.json();
@@ -96,10 +107,17 @@ function App() {
         console.error("Submission failed:", responseData.message || `Server responded with status ${response.status}`);
         setTimeout(() => setSubmitStatus('idle'), 3000); // Show error message for 3 seconds
       }
-    } catch (error) {
-      // Handle network errors or issues with JSON parsing
+    } catch (error: any) {
+      // --- New: Clear timeout in case of other errors to prevent memory leaks ---
+      clearTimeout(timeoutId);
+      
       setSubmitStatus('error');
-      console.error("An unexpected error occurred:", error);
+      // Check if the error was caused by the timeout
+      if (error.name === 'AbortError') {
+        console.error("Submission timed out after 50 seconds.");
+      } else {
+        console.error("An unexpected error occurred:", error);
+      }
       setTimeout(() => setSubmitStatus('idle'), 3000);
     } finally {
       // --- 6. Stop the loading indicator regardless of outcome ---
